@@ -1,7 +1,5 @@
 #include <msp430.h>
 
-#define INPUT = 0x01
-
 void WDTinit(void);		// sets the watchdog timer (turns it off)
 void ADCinit(void);		// Initializes the ADC to take samples
 void interruptInit(void);	// enables needed interrupts
@@ -48,14 +46,14 @@ void sample(void) {
 
 // Enable ADC to sample on demand
 void ADCinit(void){
-	  P6SEL |= INPUT;         // Enable A/D channel A0 - p6.0
+	  P6SEL |= 0x01;         // Enable A/D channel A0 - p6.0
 	  REFCTL0 &= ~REFMSTR;    // Reset REFMSTR to hand over control to ADC12_A ref control registers
 	  ADC12CTL0 = ADC12ON + ADC12SHT02 + ADC12REFON;  // turn it on, set sampling time for 16 cycles
 
 	  ADC12CTL1 = ADC12SHP;   // Use sampling timer
-	  ADC12MCTL0 = ADC12SREF_0;   // Vr+=VCC (3.3v) and Vr-=AVss (0V)
+	  ADC12MCTL0 = ADC12SREF_0;   // Vr+=VCC (3.3v) and Vr-=AVss (0V), input from A0 (p6.0)
 
-	  __delay_cycles(10000);   // let this thing settle
+	  __delay_cycles(1000000);   // let this thing settle
 
 	  ADC12CTL0 |= ADC12ENC;  // Enable conversions
 }

@@ -2,7 +2,8 @@
  * This file demos IR functionality for the capstone
  */
 
-#include <msp430.h> 
+#include <msp430.h>
+#include "data.h"
 
 #define REDLED		BIT0  // port 1 bit 0
 #define GREENLED	BIT7  // port 4 bit 7
@@ -17,15 +18,13 @@
 void port_setup(void);
 void clock_setup(void);
 void timer_setup(void);
+void IRdelay(int delay);
 
-void ir_transmit(int code[], int size);
+void ir_transmit(long int code[], int size);
 
-// time in ms
-int power_on_code[] = {
-		5, 10, 7, 3
-};
 
 volatile int flag = 0;
+long long int test = sizeof(long int);
 
 int main(void) {
 
@@ -36,13 +35,9 @@ int main(void) {
 	_BIS_SR(GIE);			// enable interrupts
 
 	while(1) {
-		if ((BUTTON & P1IN)){
-			_nop();
-		}
 
-		else {
-			ir_transmit(power_on_code, 4);
-		}
+
+		ir_transmit(bluetooth_power_toggle, 71);
 
 		_delay_cycles(1e6);
 		_delay_cycles(1e6);
@@ -52,10 +47,62 @@ int main(void) {
 		_delay_cycles(1e6);
 		_delay_cycles(1e6);
 		_delay_cycles(1e6);
+
+		_nop();
 
 	}
 
 	return 0;
+}
+
+
+void ir_transmit(long int code[], int size) {
+	volatile int i;
+	flag = 0;
+	for (i = 0; i < size; i++) {
+		flag = 1-flag;  // flag toggle
+		volatile long int delay = code[i];
+
+		if (i > 65) {
+			_nop();
+		}
+
+		if (delay > 30000) {
+			_delay_cycles(37000*FREQ);
+		}
+
+		else if (flag == 1) {
+			IRLEDPORT |= IRLED;
+			_nop();
+			IRdelay(delay);
+		}
+
+		else if (flag == 0){
+			IRLEDPORT &= ~IRLED;
+			_nop();
+			IRdelay(delay);
+		}
+
+
+
+	}
+
+	// turn off LED, stop transmission
+	flag = 0;
+	IRLEDPORT &= ~IRLED;
+}
+
+
+// delays for the IR transmit
+// the int should be in micorseconds
+void IRdelay(int delay) {
+	// This will overshoot
+	volatile int i = 0;
+	for (i = 0; i < delay; i++){
+		// assumes a 16 MHZ freq
+		// subtract 7 to make up for incr, comparison, and function calls
+		_delay_cycles(FREQ - 11);
+	}
 }
 
 
@@ -98,35 +145,6 @@ void timer_setup(void){
  * first element is assumed high
  * size is length of the array
  */
-void ir_transmit(int code[], int size) {
-	volatile int i;
-	flag = 0;
-	for (i = 0; i < size; i++) {
-		flag = 1-flag;  // flag toggle
-		volatile int delay = code[i];
-
-		if (flag == 1) {
-			IRLEDPORT |= IRLED;
-			_nop();
-		}
-
-		else if (flag == 0){
-			IRLEDPORT &= ~IRLED;
-			_nop();
-		}
-
-		volatile int j;
-		for (j = 0; j < delay; j++) {
-			_delay_cycles(1e3*FREQ);
-		}
-
-	}
-
-	// turn off LED, stop transmission
-	flag = 0;
-	IRLEDPORT &= ~IRLED;
-}
-
 
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A(void) {	// when interrupt from A0 trips
